@@ -10,9 +10,9 @@ import io
 import torch.nn.functional as F
 import nest_asyncio
 import uvicorn
-import pytesseract
+# import pytesseract
 import re
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # Apply fix for Jupyter Notebook
 nest_asyncio.apply()
@@ -99,37 +99,37 @@ def preprocess_image(image):
     return gray
 
 
-def extract_text(image):
-    """ Perform OCR with custom configurations for Aadhaar text """
+# def extract_text(image):
+#     """ Perform OCR with custom configurations for Aadhaar text """
     
-    processed_image = preprocess_image(image)
+#     processed_image = preprocess_image(image)
 
-    # Use Tesseract with a custom config
-    custom_config = "--psm 6 --oem 3"  # PSM 6: Assume a uniform block of text
-    text = pytesseract.image_to_string(processed_image, lang="eng", config=custom_config)
-    cv2.imwrite("fixed_aadhaar.png", processed_image)  # Save for debugging
+#     # Use Tesseract with a custom config
+#     custom_config = "--psm 6 --oem 3"  # PSM 6: Assume a uniform block of text
+#     text = pytesseract.image_to_string(processed_image, lang="eng", config=custom_config)
+#     cv2.imwrite("fixed_aadhaar.png", processed_image)  # Save for debugging
 
-    return text
-
-
-AADHAAR_REGEX = r"\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b"  # Match 12-digit Aadhaar
-
-def validate_aadhaar(text):
-    """ Extract Aadhaar number and name from OCR text """
-    print("\n🔹 Extracted OCR Text:\n", text)  # Debugging output
-
-    # Extract Aadhaar Number (Remove extra words & keep only digits)
-    aadhaar_match = re.search(AADHAAR_REGEX, text)
-    aadhaar_number = aadhaar_match.group(0).replace(" ", "").replace("-", "") if aadhaar_match else "Not Found"
-
-    # Extract Name (First capitalized words before DOB)
-    name_match = re.search(r"([A-Z][a-zA-Z\s]+)\n.*DOB", text, re.MULTILINE)
-    full_name = name_match.group(1).strip() if name_match else "Unknown"
-
-    return aadhaar_number, full_name
+#     return text
 
 
-@app.post("/verify-face")
+# AADHAAR_REGEX = r"\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b"  # Match 12-digit Aadhaar
+
+# def validate_aadhaar(text):
+#     """ Extract Aadhaar number and name from OCR text """
+#     print("\n🔹 Extracted OCR Text:\n", text)  # Debugging output
+
+#     # Extract Aadhaar Number (Remove extra words & keep only digits)
+#     aadhaar_match = re.search(AADHAAR_REGEX, text)
+#     aadhaar_number = aadhaar_match.group(0).replace(" ", "").replace("-", "") if aadhaar_match else "Not Found"
+
+#     # Extract Name (First capitalized words before DOB)
+#     name_match = re.search(r"([A-Z][a-zA-Z\s]+)\n.*DOB", text, re.MULTILINE)
+#     full_name = name_match.group(1).strip() if name_match else "Unknown"
+
+#     return aadhaar_number, full_name
+
+
+@app.post("/verify-face-ocr")
 async def verify_face(selfie: UploadFile = File(...), document: UploadFile = File(...)):
     print(f"Received selfie: {selfie.filename}, document: {document.filename}")
     
@@ -153,40 +153,6 @@ async def verify_face(selfie: UploadFile = File(...), document: UploadFile = Fil
             "similarity_score": float(similarity_score)  # Ensure it's a float
         })
 
-
-    except Exception as e:
-        print("Error:", str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    
-@app.post("/verify-face-ocr")
-async def verify_face_ocr(selfie: UploadFile = File(...), document: UploadFile = File(...)):
-    print(f"Received selfie: {selfie.filename}, document: {document.filename}")
-    
-    try:
-        selfie_image = read_image(selfie)
-        document_image = read_image(document)
-
-        print("Extracting faces...")
-        selfie_face = extract_face(selfie_image)
-        document_face = extract_face(document_image)
-
-        print("Computing embeddings...")
-        selfie_embedding = get_embedding(selfie_face)
-        document_embedding = get_embedding(document_face)
-        
-        match, similarity_score = cosine_similarity(selfie_embedding, document_embedding)
-
-        # Perform OCR on the document
-        print("Performing OCR on Aadhaar card...")
-        text = extract_text(document_image)
-        aadhaar_number, full_name = validate_aadhaar(text)
-
-        return JSONResponse(content={
-            "match": bool(match),
-            "similarity_score": float(similarity_score),
-            "aadhaar_number": aadhaar_number,
-            "full_name": full_name
-        })
 
     except Exception as e:
         print("Error:", str(e))
